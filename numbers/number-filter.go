@@ -79,13 +79,13 @@ type Predicate[T any] func(T) bool
 // Predicate builders
 
 // Generator
-func GreaterThan(n int) func(int) bool {
+func GreaterThan(n int) Predicate[int] {
 	return func(i int) bool {
 		return n < i
 	}
 }
 
-func LesserThan(n int) func(int) bool {
+func LesserThan(n int) Predicate[int] {
 	return func(i int) bool {
 		return n > i
 	}
@@ -117,7 +117,7 @@ func Prime() func(int) bool {
 	}
 }
 
-func Multiple(n int) func(int) bool {
+func Multiple(n int) Predicate[int] {
 	return func(i int) bool {
 		return i%n == 0
 	}
