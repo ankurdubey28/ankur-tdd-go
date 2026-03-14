@@ -7,7 +7,7 @@ import (
 
 func TestParseCSV(t *testing.T) {
 	a := assert.New(t)
-	students := parseCSV("grades.csv")
+	students, _ := parseCSV("grades.csv")
 
 	a.Equal(30, len(students), "Student list size should be 30")
 
@@ -20,8 +20,8 @@ func TestParseCSV(t *testing.T) {
 
 func TestCalculateGrade(t *testing.T) {
 	a := assert.New(t)
-
-	gradedStudents := calculateGrade(parseCSV("grades.csv"))
+	csv, _ := parseCSV("grades.csv")
+	gradedStudents := calculateGrade(csv)
 
 	expScore := []float32{43, 59.25, 53, 58.25, 52.25, 50.75, 54.75, 49.25, 64.75, 43.25, 68.5, 57.75, 68.25, 66.75, 45.5, 45.75, 45.5, 58, 56, 60.25, 61, 62.5, 80.5, 53, 30.75, 57.5, 70.75, 48.5, 60.25, 49.25}
 	expGrade := []Grade{C, B, B, B, B, B, B, C, B, C, B, B, B, B, C, C, C, B, B, B, B, B, A, B, F, B, A, C, B, C}
@@ -34,7 +34,8 @@ func TestCalculateGrade(t *testing.T) {
 }
 
 func TestFindOverallTopper(t *testing.T) {
-	gradedStudents := calculateGrade(parseCSV("grades.csv"))
+	csv, _ := parseCSV("grades.csv")
+	gradedStudents := calculateGrade(csv)
 
 	got := findOverallTopper(gradedStudents).student
 	want := student{"Bernard", "Wilson", "Boston University", 90, 85, 76, 71}
@@ -44,8 +45,8 @@ func TestFindOverallTopper(t *testing.T) {
 
 func TestFindTopperPerUniversity(t *testing.T) {
 	a := assert.New(t)
-
-	tpu := findTopperPerUniversity(calculateGrade(parseCSV("grades.csv")))
+	csv, _ := parseCSV("grades.csv")
+	tpu := findTopperPerUniversity(calculateGrade(csv))
 
 	bostonTopper := student{"Bernard", "Wilson", "Boston University", 90, 85, 76, 71}
 	dukeTopper := student{"Tamara", "Webb", "Duke University", 73, 62, 90, 58}

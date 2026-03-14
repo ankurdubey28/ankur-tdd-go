@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -29,11 +30,11 @@ type studentStat struct {
 	grade      Grade
 }
 
-func parseCSV(filePath string) []student {
+func parseCSV(filePath string) ([]student, error) {
 	var students []student
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Fatal("Issue opening file")
+		return nil, err
 	}
 	strData := string(data)
 	//fmt.Println(strData)
@@ -44,10 +45,14 @@ func parseCSV(filePath string) []student {
 
 	for i := 0; i < len(records); i++ {
 		fields := strings.Split(records[i], ",")
-		test1Score, _ := strconv.Atoi(fields[3])
-		test2Score, _ := strconv.Atoi(fields[4])
-		test3Score, _ := strconv.Atoi(fields[5])
-		test4Score, _ := strconv.Atoi(fields[6])
+		test1Score, errT1 := strconv.Atoi(fields[3])
+		test2Score, errT2 := strconv.Atoi(fields[4])
+		test3Score, errT3 := strconv.Atoi(fields[5])
+		test4Score, errT4 := strconv.Atoi(fields[6])
+
+		if errT1 != nil || errT2 != nil || errT3 != nil || errT4 != nil {
+			return nil, errors.New("error parsing string")
+		}
 
 		students = append(students, student{
 			firstName:  fields[0],
@@ -59,7 +64,7 @@ func parseCSV(filePath string) []student {
 			test4Score: test4Score,
 		})
 	}
-	return students
+	return students, nil
 }
 
 func calculateGrade(students []student) []studentStat {
@@ -96,7 +101,10 @@ func findTopperPerUniversity(gs []studentStat) map[string]studentStat {
 }
 
 func main() {
-	students := parseCSV("C:\\Users\\ASUS\\GolangProjects\\ankur-tdd-go\\student-grading-go\\grades.csv")
+	students, err := parseCSV("C:\\Users\\ASUS\\GolangProjects\\ankur-tdd-go\\student-grading-go\\grades.csv")
+	if err != nil {
+		log.Fatal("Error opening file")
+	}
 	stStat := calculateGrade(students)
 	fmt.Println(stStat)
 	fmt.Println(findOverallTopper(stStat))
