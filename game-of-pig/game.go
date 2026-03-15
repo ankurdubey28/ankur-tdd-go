@@ -6,9 +6,9 @@ import (
 )
 
 func main() {
-	fmt.Println(roll())
+	fmt.Println(rollDice())
 }
 
-func roll() int {
+func rollDice() int {
 	return rand.Intn(6) + 1
 }
