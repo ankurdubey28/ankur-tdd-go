@@ -13,30 +13,35 @@ var SCORE = map[int]int{
 
 func main() {
 	playerId := getRandomId()
+	turnTotal := 0
 	for {
 		roll := rollDice()
+		fmt.Printf("Rolled and got: %v", roll)
+		turnTotal += roll
+		fmt.Println()
 		if roll == 1 {
 			fmt.Println("got 1, your chance over")
-			// toggle player
+			// toggle player && turnTotal=0
+			turnTotal = 0
 			playerId = 1 - playerId
+			continue
 		}
 		fmt.Printf("PlayerId:%d Would you like to hold?", playerId)
 		var hold string
 		fmt.Scan(&hold)
 		if strings.ToLower(hold) == "yes" {
-			// add rolled value to total score of player
+			// add turnTotal value to total score of player
 			fmt.Println("player score updated")
-			SCORE[playerId] += roll
-
+			SCORE[playerId] += turnTotal
 			// toggle player
 			playerId = 1 - playerId
+			turnTotal = 0
 		}
 		// check if any winner
-		if playerId, ok := findWinner(SCORE); ok {
-			fmt.Printf("winner found , player ID: %d", playerId)
+		if pID, ok := findWinner(SCORE); ok {
+			fmt.Printf("winner found , player ID: %d", pID)
 		}
-		fmt.Println(SCORE)
-		SCORE[playerId] += roll
+		fmt.Println(turnTotal)
 	}
 }
 
