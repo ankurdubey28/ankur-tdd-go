@@ -3,15 +3,40 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 )
 
-var SCORE = map[int]int{
+type strategy func(int) bool
+
+var WINS = map[int]int{
 	0: 0,
 	1: 0,
 }
 
+var STRATEGY = map[string]strategy{
+	"hold least 10": strategyGenerator(10),
+	"hold least 25": strategyGenerator(25),
+}
+
 func main() {
+	// number of games to played
+	k := 1000
+	// curr strategy map
+	var currStrategy = map[int]strategy{
+		0: STRATEGY["hold least 10"],
+		1: STRATEGY["hold least 25"],
+	}
+	for k > 0 {
+		var score = map[int]int{
+			0: 0,
+			1: 0,
+		}
+		playGame(score, currStrategy)
+		k -= 1
+	}
+	fmt.Println(WINS)
+}
+
+func playGame(score map[int]int, currStrategy map[int]strategy) {
 	playerId := getRandomId()
 	turnTotal := 0
 	for {
@@ -27,21 +52,22 @@ func main() {
 			continue
 		}
 		fmt.Printf("PlayerId:%d Would you like to hold?", playerId)
-		var hold string
-		fmt.Scan(&hold)
-		if strings.ToLower(hold) == "yes" {
+		hold := currStrategy[playerId](turnTotal)
+		if hold {
 			// add turnTotal value to total score of player
 			fmt.Println("player score updated")
-			SCORE[playerId] += turnTotal
+			score[playerId] += turnTotal
 			// toggle player
 			playerId = 1 - playerId
 			turnTotal = 0
 		}
 		// check if any winner
-		if pID, ok := findWinner(SCORE); ok {
+		if pID, ok := findWinner(score); ok {
 			fmt.Printf("winner found , player ID: %d", pID)
+			// winner found , increment wins for winning player and ,Reset score(happens automatically) and break
+			WINS[pID] += 1
+			break
 		}
-		fmt.Println(turnTotal)
 	}
 }
 
@@ -55,9 +81,15 @@ func getRandomId() int {
 
 func findWinner(score map[int]int) (int, bool) {
 	for k, v := range score {
-		if v >= 10 {
+		if v >= 100 {
 			return k, true
 		}
 	}
 	return -1, false
+}
+
+func strategyGenerator(k int) strategy {
+	return func(turnTotal int) bool {
+		return turnTotal >= k
+	}
 }

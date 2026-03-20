@@ -37,3 +37,8 @@ TDD follows agile development methodology , where feedback loop is integrated fa
 2. The test function must start with the word Test
 3. The test function takes one argument only t *testing.T
 4. To use the *testing.T type, you need to import "testing", like we did with fmt in the other file
+
+
+# Side Effects and Randomness In Unit tests
+1. Testing in presence of side effects and randomness is not advisable , because outputs are non deterministic
+2. Side effects means function changes or depends on external state (api / files / databases) outside functions scope.
