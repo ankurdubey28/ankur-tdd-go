@@ -1,1 +1,2 @@
-hello world
+hello world 🧠
+remember both bytes and characters/runes count spaces

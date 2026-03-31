@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"unicode"
 )
 
 type config struct {
 	newLineCount int
 	charCount    int
 	byteCount    int
+	wordCount    int
 	fileName     string
 }
 
@@ -38,7 +40,7 @@ func main() {
 	}
 	// print result
 	// format similar to wc: lines chars bytes filename
-	fmt.Println(c.newLineCount, c.charCount, c.byteCount, c.fileName)
+	fmt.Println(c.newLineCount, c.wordCount, c.charCount, c.byteCount, c.fileName)
 }
 
 func parseArgs(w io.Writer, args []string) (config, error) {
@@ -61,7 +63,7 @@ func validateArgs(c config) error {
 }
 
 func runCmd(c *config) error {
-	lines, chars, bytes, err := wc(c.fileName)
+	lines, words, bytes, chars, err := wc(c.fileName)
 
 	if err != nil {
 		return errors.New("error evaluating file")
@@ -70,28 +72,45 @@ func runCmd(c *config) error {
 	c.newLineCount = lines
 	c.charCount = chars
 	c.byteCount = bytes
+	c.wordCount = words
 	return nil
 }
 
-func wc(fileName string) (int, int, int, error) {
+func wc(fileName string) (int, int, int, int, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		return 0, 0, 0, errors.New("file open error")
+		panic(err)
 	}
 	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	nlines, cCount, bCount := 0, 0, 0
-	for scanner.Scan() {
-		line := scanner.Text()
-		nlines++
-		// characters (runes)
-		cCount += len([]rune(line))
 
+	reader := bufio.NewReader(file)
+
+	var lines, words, bytes, chars int
+	inWord := false
+
+	for {
+		r, size, err := reader.ReadRune()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
 		// bytes
-		bCount += len(line)
+		bytes += size
+		// characters (runes)
+		chars++
+		// lines
+		if r == '\n' {
+			lines++
+		}
+		// words
+		if unicode.IsSpace(r) {
+			inWord = false
+		} else if !inWord {
+			words++
+			inWord = true
+		}
 	}
-	if err = scanner.Err(); err != nil {
-		return 0, 0, 0, err
-	}
-	return nlines, cCount, bCount, nil
+	return lines, words, bytes, chars, nil
 }
