@@ -10,26 +10,17 @@ import (
 	"unicode"
 )
 
+var IsDirectory = errors.New("Is Directory")
+
 type config struct {
 	nBool, cBool, bBool, wBool bool
 
-	fileName string
+	fileNames []string
 }
 
 func main() {
 	c, err := parseArgs(os.Stdout, os.Args[1:])
 	if err != nil {
-		os.Exit(1)
-	}
-	// get filename from args
-	args := os.Args[1:]
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	c.fileName = args[0]
-	// validate
-	if err := validateArgs(c); err != nil {
 		os.Exit(1)
 	}
 	// run command
@@ -53,82 +44,143 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 	}
 
 	// flags defined
-	flag.BoolVar(&c.nBool, "l", false, "flag for newline count")
-	flag.BoolVar(&c.cBool, "m", false, "flag for character count")
-	flag.BoolVar(&c.wBool, "w", false, "flag for word count")
-	flag.BoolVar(&c.bBool, "c", false, "flag for byte count")
+	fs.BoolVar(&c.nBool, "l", false, "flag for newline count")
+	fs.BoolVar(&c.cBool, "m", false, "flag for character count")
+	fs.BoolVar(&c.wBool, "w", false, "flag for word count")
+	fs.BoolVar(&c.bBool, "c", false, "flag for byte count")
 
 	err := fs.Parse(args)
 	if err != nil {
 		return c, err
 	}
 
-	if fs.NArg() > 1 {
-		return c, errors.New("positional arguments specified")
-	}
-	if fs.NArg() == 1 {
-		c.fileName = fs.Arg(0)
-	}
+	c.fileNames = fs.Args()
 
 	return c, nil
 }
 
-func validateArgs(c config) error {
-	if c.fileName == "" {
-		return errors.New("empty file")
-	}
-	stats, err := os.Stat(c.fileName)
+func validateArgs(fileName string) error {
+	stats, err := os.Stat(fileName)
 	if err != nil {
 		return err
 	}
 	if stats.IsDir() {
-		return errors.New("directory entered")
+		return IsDirectory
 	}
 	return nil
 }
 
 func runCmd(c *config) error {
-	lines, words, bytes, chars, err := wcCount(c.fileName)
-	if err != nil {
-		return err
+
+	if len(c.fileNames) == 0 {
+		lines, words, bytes, chars, err := wcFromReader(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		if !c.nBool && !c.wBool && !c.bBool && !c.cBool {
+			c.nBool = true
+			c.wBool = true
+			c.bBool = true
+		}
+
+		if c.nBool {
+			fmt.Print(lines, " ")
+		}
+		if c.wBool {
+			fmt.Print(words, " ")
+		}
+		if c.bBool {
+			fmt.Print(bytes, " ")
+		}
+		if c.cBool {
+			fmt.Print(chars, " ")
+		}
+		fmt.Println()
+
+		return nil
 	}
 
-	// default: -l -w -c
+	var totalCount = []int{0, 0, 0, 0}
+
 	if !c.nBool && !c.wBool && !c.bBool && !c.cBool {
 		c.nBool = true
 		c.wBool = true
 		c.bBool = true
 	}
-	// collect outputs in fixed wc order
-	var outputs []int
 
-	if c.nBool {
-		outputs = append(outputs, lines)
+	for _, fileName := range c.fileNames {
+		lines, words, bytes, chars := 0, 0, 0, 0
+		hasError := false
+
+		if err := validateArgs(fileName); err != nil {
+			hasError = true
+
+			if errors.Is(err, IsDirectory) {
+				fmt.Fprintf(os.Stderr, "wc: %s: Is a directory\n", fileName)
+
+			} else {
+				fmt.Fprintf(os.Stderr, "wc: %s: %v\n", fileName, err)
+				continue
+			}
+		}
+
+		if !hasError {
+			file, err := os.Open(fileName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "wc: %s: %v\n", fileName, err)
+				continue
+			}
+
+			lines, words, bytes, chars, err = wcFromReader(file)
+			file.Close()
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "wc: %s: %v\n", fileName, err)
+				continue
+			}
+		}
+
+		// print output
+		if c.nBool {
+			totalCount[0] += lines
+			fmt.Print(lines, " ")
+		}
+		if c.wBool {
+			totalCount[1] += words
+			fmt.Print(words, " ")
+		}
+		if c.bBool {
+			totalCount[2] += bytes
+			fmt.Print(bytes, " ")
+		}
+		if c.cBool {
+			totalCount[3] += chars
+			fmt.Print(chars, " ")
+		}
+		fmt.Println(fileName)
 	}
-	if c.wBool {
-		outputs = append(outputs, words)
+
+	if len(c.fileNames) > 1 {
+		if c.nBool {
+			fmt.Print(totalCount[0], " ")
+		}
+		if c.wBool {
+			fmt.Print(totalCount[1], " ")
+		}
+		if c.bBool {
+			fmt.Print(totalCount[2], " ")
+		}
+		if c.cBool {
+			fmt.Print(totalCount[3], " ")
+		}
+		fmt.Println("total")
 	}
-	if c.bBool {
-		outputs = append(outputs, bytes)
-	}
-	if c.cBool {
-		outputs = append(outputs, chars)
-	}
-	for _, v := range outputs {
-		fmt.Print(v, " ")
-	}
-	fmt.Println(c.fileName)
 	return nil
 }
 
-func wcCount(fileName string) (int, int, int, int, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	reader := bufio.NewReader(file)
+func wcFromReader(r io.Reader) (int, int, int, int, error) {
+	reader := bufio.NewReader(r)
 
 	var lines, words, bytes, chars int
 	inWord := false
@@ -157,5 +209,5 @@ func wcCount(fileName string) (int, int, int, int, error) {
 			inWord = true
 		}
 	}
-	return lines + 1, words, bytes, chars, nil
+	return lines, words, bytes, chars, nil
 }
