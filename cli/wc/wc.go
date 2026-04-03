@@ -191,7 +191,7 @@ func wcFromReader(r io.Reader) (int, int, int, int, error) {
 			break
 		}
 		if err != nil {
-			panic(err)
+			return 0, 0, 0, 0, err
 		}
 		// bytes
 		bytes += size
