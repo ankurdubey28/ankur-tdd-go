@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"regexp"
 )
 
 type config struct {
@@ -69,14 +69,19 @@ func runCmd(c *config) error {
 	}
 	defer file.Close()
 
+	re, err := regexp.Compile(c.pattern)
+	if err != nil {
+		return err
+	}
+
 	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
 		content := scanner.Text()
-		if strings.Contains(content, c.pattern) {
+		if re.MatchString(content) {
 			fmt.Println(content)
 		}
 	}
-	return nil
+
+	return scanner.Err()
 }
