@@ -17,6 +17,7 @@ type config struct {
 
 var ErrIsDirectory = errors.New("Directory given")
 var ErrFileNotFound = errors.New("file does not exist")
+var ErrPermDenied = errors.New("permission to read file denied")
 
 func main() {
 	runCmd(&config{
@@ -47,12 +48,16 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 }
 
 func validateArgs(c *config) error {
-	stats, err := os.Stat(c.fileName)
+	info, err := os.Stat(c.fileName)
 	if err != nil {
 		return ErrFileNotFound
 	}
-	if stats.IsDir() {
+	if info.IsDir() {
 		return ErrIsDirectory
+	}
+	mode := info.Mode()
+	if mode.Perm()&(1<<8) == 0 {
+		return ErrPermDenied
 	}
 	return nil
 }
