@@ -11,9 +11,9 @@ import (
 )
 
 type config struct {
-	files         []string
-	pattern       string
-	caseSensitive bool
+	files      []string
+	pattern    string
+	ignoreCase bool
 }
 
 var ErrIsDirectory = errors.New("Directory given")
@@ -42,7 +42,7 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 		fmt.Fprintf(w, "searches for pattern in given file and print entire line")
 	}
 
-	fs.BoolVar(&c.caseSensitive, "i", false, "ignore case sensitivity")
+	fs.BoolVar(&c.ignoreCase, "i", false, "ignore case sensitivity")
 
 	err := fs.Parse(args)
 
@@ -72,11 +72,16 @@ func validateArgs(file string) error {
 }
 
 func runCmd(c *config) error {
+	// check for -i flag (case ignore)
+	if c.ignoreCase {
+		c.pattern = "(?i)" + c.pattern
+	}
 	re, err := regexp.Compile(c.pattern)
+
 	if err != nil {
 		return err
 	}
-
+	// check if multiple input files
 	multiFile := len(c.files) > 1
 
 	for _, fname := range c.files {
