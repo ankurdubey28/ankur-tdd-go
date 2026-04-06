@@ -11,8 +11,9 @@ import (
 )
 
 type config struct {
-	fileName string
-	pattern  string
+	files         []string
+	pattern       string
+	caseSensitive bool
 }
 
 var ErrIsDirectory = errors.New("Directory given")
@@ -20,10 +21,16 @@ var ErrFileNotFound = errors.New("file does not exist")
 var ErrPermDenied = errors.New("permission to read file denied")
 
 func main() {
-	runCmd(&config{
-		fileName: "C:\\Users\\ASUS\\GolangProjects\\ankur-tdd-go\\cli\\grep\\text.txt",
-		pattern:  "hello",
-	})
+	c, err := parseArgs(os.Stdout, os.Args[1:])
+	if err != nil {
+		fmt.Println("error")
+		os.Exit(1)
+	}
+	err = runCmd(&c)
+	if err != nil {
+		fmt.Println("error")
+		os.Exit(1)
+	}
 }
 
 func parseArgs(w io.Writer, args []string) (config, error) {
@@ -35,20 +42,22 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 		fmt.Fprintf(w, "searches for pattern in given file and print entire line")
 	}
 
+	fs.BoolVar(&c.caseSensitive, "i", false, "ignore case sensitivity")
+
 	err := fs.Parse(args)
 
 	if err != nil {
 		return c, err
 	}
 
-	posArgs := fs.Args()
-	c.pattern = posArgs[0]
-	c.fileName = posArgs[1]
+	input := fs.Args()
+	c.pattern = input[0]
+	c.files = input[1:]
 	return c, nil
 }
 
-func validateArgs(c *config) error {
-	info, err := os.Stat(c.fileName)
+func validateArgs(file string) error {
+	info, err := os.Stat(file)
 	if err != nil {
 		return ErrFileNotFound
 	}
@@ -63,25 +72,45 @@ func validateArgs(c *config) error {
 }
 
 func runCmd(c *config) error {
-	file, err := os.Open(c.fileName)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	re, err := regexp.Compile(c.pattern)
 	if err != nil {
 		return err
 	}
 
-	scanner := bufio.NewScanner(file)
+	multiFile := len(c.files) > 1
 
-	for scanner.Scan() {
-		content := scanner.Text()
-		if re.MatchString(content) {
-			fmt.Println(content)
+	for _, fname := range c.files {
+		if err := validateArgs(fname); err != nil {
+			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
+			continue
+		}
+
+		f, err := os.Open(fname)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
+			continue
+		}
+		scanner := bufio.NewScanner(f)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if re.MatchString(line) {
+				if multiFile {
+					fmt.Printf("%s:%s\n", fname, line)
+				} else {
+					fmt.Println(line)
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
+		}
+
+		if err := f.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
 		}
 	}
 
-	return scanner.Err()
+	return nil
 }
