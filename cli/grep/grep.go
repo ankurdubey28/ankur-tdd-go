@@ -11,7 +11,7 @@ import (
 )
 
 type config struct {
-	files      []string
+	input      []string // input here represents higher level of abstraction , an input can be a file or even directory or even stdin (empty input)
 	pattern    string
 	ignoreCase bool
 }
@@ -52,7 +52,7 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 
 	input := fs.Args()
 	c.pattern = input[0]
-	c.files = input[1:]
+	c.input = input[1:]
 	return c, nil
 }
 
@@ -64,10 +64,10 @@ func validateArgs(file string) error {
 	if info.IsDir() {
 		return ErrIsDirectory
 	}
-	mode := info.Mode()
-	if mode.Perm()&(1<<8) == 0 {
-		return ErrPermDenied
-	}
+	//mode := info.Mode()
+	//if mode.Perm()&(1<<8) == 0 {
+	//	return ErrPermDenied
+	//}
 	return nil
 }
 
@@ -81,10 +81,17 @@ func runCmd(c *config) error {
 	if err != nil {
 		return err
 	}
-	// check if multiple input files
-	multiFile := len(c.files) > 1
 
-	for _, fname := range c.files {
+	// check if no file given , means input from stdin
+	if len(c.input) == 0 {
+		grep(re, os.Stdin, false)
+		return nil
+	}
+
+	// else check if multiple inputs present
+	multiFile := len(c.input) > 1
+
+	for _, fname := range c.input {
 		if err := validateArgs(fname); err != nil {
 			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
 			continue
@@ -95,27 +102,34 @@ func runCmd(c *config) error {
 			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
 			continue
 		}
-		scanner := bufio.NewScanner(f)
+		//call grep func
+		grep(re, f, multiFile)
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			if re.MatchString(line) {
-				if multiFile {
-					fmt.Printf("%s:%s\n", fname, line)
-				} else {
-					fmt.Println(line)
-				}
+		//close file
+		f.Close()
+
+	}
+	return nil
+}
+
+func grep(re *regexp.Regexp, input io.Reader, multiFile bool) {
+
+	scanner := bufio.NewScanner(input)
+
+	// no need to handle ctrl+D separately , because scanner.Scan() run until it receives EOF
+	// and ctrl+D gives EOF signal only.
+	for scanner.Scan() {
+		line := scanner.Text()
+		if re.MatchString(line) {
+			if multiFile {
+				fmt.Printf("%s:%s\n", input, line)
+			} else {
+				fmt.Println(line)
 			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
-		}
-
-		if err := f.Close(); err != nil {
-			fmt.Fprintln(os.Stderr, "grep:", fname+":", err)
 		}
 	}
 
-	return nil
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "grep:", err)
+	}
 }
