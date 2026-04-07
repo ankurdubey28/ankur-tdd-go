@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 )
 
@@ -14,6 +16,7 @@ type config struct {
 	input      []string // input here represents higher level of abstraction , an input can be a file or even directory or even stdin (empty input)
 	pattern    string
 	ignoreCase bool
+	recursive  bool
 }
 
 var ErrIsDirectory = errors.New("Directory given")
@@ -43,6 +46,7 @@ func parseArgs(w io.Writer, args []string) (config, error) {
 	}
 
 	fs.BoolVar(&c.ignoreCase, "i", false, "ignore case sensitivity")
+	fs.BoolVar(&c.recursive, "r", false, "do recursive search in a dir")
 
 	err := fs.Parse(args)
 
@@ -82,6 +86,16 @@ func runCmd(c *config) error {
 		return err
 	}
 
+	// if no file given , but directory given then check for presence of -r flag
+	if len(c.input) == 1 && c.recursive {
+		info, _ := os.Stat(c.input[0])
+		if !info.IsDir() {
+			return nil
+		}
+		evaluateDir(c.input[0], re)
+		return nil
+	}
+
 	// check if no file given , means input from stdin
 	if len(c.input) == 0 {
 		grep(re, os.Stdin, false)
@@ -112,10 +126,35 @@ func runCmd(c *config) error {
 	return nil
 }
 
+func evaluateDir(dirName string, re *regexp.Regexp) {
+	filepath.WalkDir(dirName, func(path string, d fs.DirEntry, err error) error {
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "grep:", err)
+			return nil
+		}
+
+		if d.IsDir() {
+			return nil // means continue recursively for this dir as well
+		}
+		// means it is a file
+		file, err := os.Open(path)
+
+		if err != nil {
+			return ErrPermDenied
+		}
+
+		grep(re, file, false)
+		file.Close()
+		return nil
+	})
+}
+
 func grep(re *regexp.Regexp, input io.Reader, multiFile bool) {
 
 	scanner := bufio.NewScanner(input)
-
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024) //increase buffer size
 	// no need to handle ctrl+D separately , because scanner.Scan() run until it receives EOF
 	// and ctrl+D gives EOF signal only.
 	for scanner.Scan() {
@@ -128,7 +167,6 @@ func grep(re *regexp.Regexp, input io.Reader, multiFile bool) {
 			}
 		}
 	}
-
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "grep:", err)
 	}
