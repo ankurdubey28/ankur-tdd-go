@@ -41,7 +41,7 @@ TDD follows agile development methodology , where feedback loop is integrated fa
 
 # Side Effects and Randomness In Unit tests
 1. Testing in presence of side effects and randomness is not advisable , because outputs are non deterministic
-2. Side effects means function changes or depends on external state (api / files / databases) outside functions scope.
+2. Side effects means function changes or depends on external state (api / input / databases) outside functions scope.
 3. Solution? Dependency Injection + Determinism
 
 # Dependency Injection (DI)

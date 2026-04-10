@@ -35,7 +35,7 @@ For this, first, you must read and parse the `grades.csv` file into a `[]student
 # Instructions
 1. You are expected to fork this repo
 2. Set up the repo locally (check the pre-requisites section for software). Run `make setup` to download the dependencies. Run `make test` to run the test cases.
-3. Write code in `main.go` file such that each of the test cases pass. You are NOT supposed to modify any code in test case files (i.e. `main_test.go` file)
+3. Write code in `main.go` file such that each of the test cases pass. You are NOT supposed to modify any code in test case input (i.e. `main_test.go` file)
 4. You are not supposed to modify the grades.csv file. The program should return appropriate results so that the test cases pass.
 5. Once you write the code and all the test cases pass, push your code to your forked repo on GitHub. Reply to the email you have received from One2N with the following:
 
