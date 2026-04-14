@@ -16,19 +16,24 @@ func main() {
 
 	for _, arg := range args {
 		fmt.Println(arg)
-		err := tree(arg, "")
+		dirs, files, err := tree(arg, "")
 		if err != nil {
 			log.Printf("tree %s: %v\n", arg, err)
+			continue
 		}
+
+		fmt.Printf("\n%d directories, %d files\n", dirs, files)
 	}
 }
 
-func tree(root, indent string) error {
+func tree(root, indent string) (int, int, error) {
+	fileCount, dirCount := 0, 0
+
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		return fmt.Errorf("could not read %s: %v", root, err)
+		return 0, 0, fmt.Errorf("could not read %s: %v", root, err)
 	}
-	// filter hidden files
+
 	var names []string
 	for _, e := range entries {
 		if len(e.Name()) > 0 && e.Name()[0] != '.' {
@@ -51,18 +56,24 @@ func tree(root, indent string) error {
 		fmt.Printf("%s%s%s\n", indent, connector, name)
 
 		fullPath := filepath.Join(root, name)
-
 		info, err := os.Stat(fullPath)
 		if err != nil {
-			return err
+			return 0, 0, err
 		}
 
 		if info.IsDir() {
-			if err := tree(fullPath, indent+nextIndent); err != nil {
-				return err
+			dirCount++
+
+			d, f, err := tree(fullPath, indent+nextIndent)
+			if err != nil {
+				return 0, 0, err
 			}
+
+			dirCount += d
+			fileCount += f
+		} else {
+			fileCount++ // count file
 		}
 	}
-
-	return nil
+	return dirCount, fileCount, nil
 }
