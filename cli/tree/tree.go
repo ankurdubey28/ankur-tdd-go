@@ -1,29 +1,56 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 )
 
-func main() {
-	args := []string{"."}
+type config struct {
+	fullPath  bool
+	inputs    []string
+	dirCount  int
+	fileCount int
+}
 
-	if len(os.Args) > 1 {
-		args = os.Args[1:]
+func main() {
+
+	c, err := parseArgs(os.Stdin, os.Args)
+	if err != nil {
+		return
 	}
 
-	for _, arg := range args {
+	for _, arg := range c.inputs {
 		fmt.Println(arg)
 		dirs, files, err := tree(arg, "")
 		if err != nil {
 			log.Printf("tree %s: %v\n", arg, err)
 			continue
 		}
-
-		fmt.Printf("\n%d directories, %d files\n", dirs, files)
+		c.fileCount += files
+		c.dirCount += dirs
 	}
+	fmt.Printf("\n%d directories, %d files\n", c.dirCount, c.fileCount)
+}
+
+func parseArgs(w io.Writer, args []string) (config, error) {
+	c := config{}
+	fs := flag.NewFlagSet("tree", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(w, "usage: %s [options][input]", fs.Name())
+		fmt.Fprintf(w, "prints the entire directory structure in form of tree")
+	}
+	fs.BoolVar(&c.fullPath, "f", false, "prints full path from root folder")
+
+	if err := fs.Parse(args); err != nil {
+		return c, err
+	}
+
+	c.inputs = fs.Args()
+	return c, nil
 }
 
 func tree(root, indent string) (int, int, error) {
@@ -31,7 +58,7 @@ func tree(root, indent string) (int, int, error) {
 
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		return 0, 0, fmt.Errorf("could not read %s: %v", root, err)
+		return 0, 0, fmt.Errorf(" %s: [%v]", root, err)
 	}
 
 	var names []string
